@@ -3,6 +3,10 @@ use super::*;
 use rcore_memory::memory_set::handler::Linear;
 use rcore_memory::memory_set::MemoryAttr;
 
+
+// TODO: a lock should be added
+pub static mut user_interrupt_handlers : [(usize, *const u64); 32] = [(0usize, 0 as *const u64); 32];
+
 /// Allocate this PCI device to user space
 /// The kernel driver using the PCI device will be unloaded
 #[cfg(target_arch = "x86_64")]
@@ -53,3 +57,13 @@ pub fn sys_get_paddr(vaddrs: *const u64, paddrs: *mut u64, count: usize) -> SysR
     }
     Ok(0)
 }
+
+/// Register the process for an interrupt handler
+pub fn sys_register_ih(id: u16, handler: *const u64) -> SysResult {
+    let proc = process();
+    proc.vm.check_execute_ptr(handler)?;
+
+    unsafe { user_interrupt_handlers[id as usize] = (proc.pid.get(), handler); }
+    Ok(0)
+}
+

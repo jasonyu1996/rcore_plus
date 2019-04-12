@@ -69,6 +69,9 @@ use super::TrapFrame;
 use crate::drivers::DRIVERS;
 use bitflags::*;
 use log::*;
+use crate::syscall::custom::user_interrupt_handlers;
+use super::super::idt::{enable_user_interrupts, disable_user_interrupts};
+use x86_64::instructions::interrupts;
 
 global_asm!(include_str!("trap.asm"));
 global_asm!(include_str!("vector.asm"));
@@ -76,6 +79,15 @@ global_asm!(include_str!("vector.asm"));
 #[allow(non_upper_case_globals)]
 #[no_mangle]
 pub extern "C" fn rust_trap(tf: &mut TrapFrame) {
+    // delegate user interrupts to kernel
+    if tf.is_user() {
+        disable_user_interrupts();
+    }
+
+    if tf.trap_num as u8 == Syscall32 {
+        interrupts::enable();
+    }
+
     trace!(
         "Interrupt: {:#x} @ CPU{}",
         tf.trap_num,
@@ -110,6 +122,16 @@ pub extern "C" fn rust_trap(tf: &mut TrapFrame) {
         InvalidOpcode => invalid_opcode(tf),
         DivideError | GeneralProtectionFault => error(tf),
         _ => panic!("Unhandled interrupt {:x}", tf.trap_num),
+    }
+
+    // if about to return to user mode
+    // enable user interrupt
+    if tf.trap_num as u8 == Syscall32 {
+        interrupts::disable();
+    }
+    
+    if tf.is_user() {
+        enable_user_interrupts();
     }
 }
 

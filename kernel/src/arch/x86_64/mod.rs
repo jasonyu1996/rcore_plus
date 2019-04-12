@@ -23,6 +23,10 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
     let cpu_id = cpu::id();
     println!("Hello world! from CPU {}!", cpu_id);
 
+    unsafe{
+        idt::idt_fill();
+    }
+
     if cpu_id != 0 {
         while !AP_CAN_INIT.load(Ordering::Relaxed) {}
         other_start();
@@ -33,7 +37,9 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
     info!("{:#?}", boot_info);
 
     // Init trap handling.
-    idt::init();
+    unsafe{
+        idt::init();
+    }
     interrupt::fast_syscall::init();
 
     // Init physical memory management and heap.
@@ -57,7 +63,9 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
 
 /// The entry point for other processors
 fn other_start() -> ! {
-    idt::init();
+    unsafe{
+        idt::init();
+    }
     gdt::init();
     cpu::init();
     interrupt::fast_syscall::init();

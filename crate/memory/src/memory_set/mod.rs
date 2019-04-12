@@ -54,6 +54,7 @@ impl MemoryArea {
     pub fn contains(&self, addr: VirtAddr) -> bool {
         addr >= self.start_addr && addr < self.end_addr
     }
+
     /// Check the array is within the readable memory
     fn check_read_array<S>(&self, ptr: *const S, count: usize) -> bool {
         ptr as usize >= self.start_addr && unsafe { ptr.add(count) as usize } <= self.end_addr
@@ -62,6 +63,12 @@ impl MemoryArea {
     fn check_write_array<S>(&self, ptr: *mut S, count: usize) -> bool {
         !self.attr.readonly && self.check_read_array(ptr, count)
     }
+
+    /// Check the array is within the executable memory
+    fn check_execute_array<S>(&self, ptr: *const S, count: usize) -> bool {
+        self.attr.execute && self.check_read_array(ptr, count)
+    }
+    
     /// Check the null-end C string is within the readable memory, and is valid.
     /// If so, clone it to a String.
     ///
@@ -209,6 +216,10 @@ impl<T: InactivePageTable> MemorySet<T> {
     pub fn check_write_ptr<S>(&self, ptr: *mut S) -> VMResult<()> {
         self.check_write_array(ptr, 1)
     }
+    /// Check the pointer is within the executable memory
+    pub fn check_execute_ptr<S>(&self, ptr: *const S) -> VMResult<()> {
+        self.check_execute_array(ptr, 1)
+    }
     /// Check the array is within the readable memory
     pub fn check_read_array<S>(&self, ptr: *const S, count: usize) -> VMResult<()> {
         self.areas
@@ -222,6 +233,14 @@ impl<T: InactivePageTable> MemorySet<T> {
         self.areas
             .iter()
             .find(|area| area.check_write_array(ptr, count))
+            .map(|_| ())
+            .ok_or(VMError::InvalidPtr)
+    }
+    /// Check the array is within the executable memory
+    pub fn check_execute_array<S>(&self, ptr: *const S, count: usize) -> VMResult<()> {
+        self.areas
+            .iter()
+            .find(|area| area.check_execute_array(ptr, count))
             .map(|_| ())
             .ok_or(VMError::InvalidPtr)
     }

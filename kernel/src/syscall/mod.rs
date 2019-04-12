@@ -23,7 +23,7 @@ use self::net::*;
 use self::proc::*;
 use self::time::*;
 
-mod custom;
+pub mod custom;
 mod fs;
 mod mem;
 mod misc;
@@ -278,6 +278,7 @@ pub fn syscall(id: usize, args: [usize; 6], tf: &mut TrapFrame) -> isize {
         // custom temporary syscall
         SYS_MAP_PCI_DEVICE => sys_map_pci_device(args[0], args[1]),
         SYS_GET_PADDR => sys_get_paddr(args[0] as *const u64, args[1] as *mut u64, args[2]),
+        SYS_REG_IH => sys_register_ih(args[0] as u16, args[1] as *const u64),
 
         _ => {
             #[cfg(target_arch = "x86_64")]
